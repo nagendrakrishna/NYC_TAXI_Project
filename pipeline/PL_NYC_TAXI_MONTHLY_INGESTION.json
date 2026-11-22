@@ -1,0 +1,271 @@
+{
+	"name": "PL_NYC_TAXI_MONTHLY_INGESTION",
+	"properties": {
+		"activities": [
+			{
+				"name": "GM_Check_Month_Complete",
+				"type": "GetMetadata",
+				"dependsOn": [
+					{
+						"activity": "IF_Validate_Parameters",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.0:10:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "DS_ADLS_BINARY",
+						"type": "DatasetReference",
+						"parameters": {
+							"p_file": {
+								"value": "_SUCCESS",
+								"type": "Expression"
+							},
+							"p_folder": {
+								"value": "@concat('nyc_taxi/yellow/year=',pipeline().parameters.pp_year,'/month=',pipeline().parameters.pp_month)",
+								"type": "Expression"
+							}
+						}
+					},
+					"fieldList": [
+						"exists"
+					],
+					"storeSettings": {
+						"type": "AzureBlobFSReadSettings",
+						"recursive": true,
+						"enablePartitionDiscovery": false
+					},
+					"formatSettings": {
+						"type": "BinaryReadSettings"
+					}
+				}
+			},
+			{
+				"name": "GM_Check_Raw_File",
+				"type": "GetMetadata",
+				"dependsOn": [
+					{
+						"activity": "IF_Validate_Parameters",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.00:10:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "DS_ADLS_BINARY",
+						"type": "DatasetReference",
+						"parameters": {
+							"p_file": {
+								"value": "@concat('yellow_tripdata_',pipeline().parameters.pp_year,'-',pipeline().parameters.pp_month,'.parquet')",
+								"type": "Expression"
+							},
+							"p_folder": {
+								"value": "@concat('nyc_taxi/yellow/year=',pipeline().parameters.pp_year,'/month=',pipeline().parameters.pp_month)",
+								"type": "Expression"
+							}
+						}
+					},
+					"fieldList": [
+						"exists",
+						"size"
+					],
+					"storeSettings": {
+						"type": "AzureBlobFSReadSettings",
+						"recursive": true,
+						"enablePartitionDiscovery": false
+					},
+					"formatSettings": {
+						"type": "BinaryReadSettings"
+					}
+				}
+			},
+			{
+				"name": "SW_Check_Ingestion_Status",
+				"type": "Switch",
+				"dependsOn": [
+					{
+						"activity": "GM_Check_Month_Complete",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "GM_Check_Raw_File",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"on": {
+						"value": "@if(\n    activity('GM_Check_Month_Complete').output.exists,\n    if(\n        and(\n            activity('GM_Check_Raw_File').output.exists,\n            greater(\n                coalesce(\n                    activity('GM_Check_Raw_File').output?.size,\n                    0\n                ),\n                0\n            )\n        ),\n        'ALREADY_LOADED',\n        'INVALID_COMMIT'\n    ),\n    'INGEST'\n)",
+						"type": "Expression"
+					},
+					"cases": [
+						{
+							"value": "ALREADY_LOADED",
+							"activities": [
+								{
+									"name": "WAIT_Already_Loaded",
+									"type": "Wait",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"waitTimeInSeconds": 1
+									}
+								}
+							]
+						},
+						{
+							"value": "INVALID_COMMIT",
+							"activities": [
+								{
+									"name": "FAIL_Committed_Raw_Missing",
+									"type": "Fail",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"message": {
+											"value": "@concat('Data integrity failure: _SUCCESS exists ','but the raw Parquet file is missing. Month: ',pipeline().parameters.pp_year,'-',pipeline().parameters.pp_month,'. Run ID: ',pipeline().RunId)",
+											"type": "Expression"
+										},
+										"errorCode": "COMMITTED_RAW_MISSING"
+									}
+								}
+							]
+						},
+						{
+							"value": "INGEST",
+							"activities": [
+								{
+									"name": "EP_NYC_TAXI_INGEST_WORKER",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"policy": {
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "PL_NYC_TAXI_INGEST_WORKER",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"pp_year": {
+												"value": "@pipeline().parameters.pp_year",
+												"type": "Expression"
+											},
+											"pp_month": {
+												"value": "@pipeline().parameters.pp_month",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								{
+									"name": "FAIL_Child_Ingestion",
+									"type": "Fail",
+									"dependsOn": [
+										{
+											"activity": "EP_NYC_TAXI_INGEST_WORKER",
+											"dependencyConditions": [
+												"Failed"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"message": {
+											"value": "@concat('NYC Taxi monthly ingestion failed. Month: ',pipeline().parameters.pp_year,'-',pipeline().parameters.pp_month,'. Parent Run ID: ',pipeline().RunId,'. Error: ',activity('EP_NYC_TAXI_INGEST_WORKER').error.message)",
+											"type": "Expression"
+										},
+										"errorCode": "CHILD_INGEST_FAILED"
+									}
+								}
+							]
+						}
+					],
+					"defaultActivities": [
+						{
+							"name": "FAIL_Unexpected_Status",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": {
+									"value": "Switch returned an unexpected ingestion status.",
+									"type": "Expression"
+								},
+								"errorCode": {
+									"value": "UNEXPECTED_INGESTION_STATUS",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "IF_Validate_Parameters",
+				"type": "IfCondition",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@not(\n    and(\n        contains(\n            createArray('2025','2026','2027','2028','2029','2030'),\n            pipeline().parameters.pp_year\n        ),\n        contains(\n            createArray(\n                '01','02','03','04','05','06',\n                '07','08','09','10','11','12'\n            ),\n            pipeline().parameters.pp_month\n        )\n    )\n)\n",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "FAIL_Invalid_Parameters",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": {
+									"value": "@concat(\n    'Invalid NYC Taxi ingestion parameters. Year: ',\n    pipeline().parameters.pp_year,\n    ', Month: ',\n    pipeline().parameters.pp_month,\n    '. Expected a supported four-digit year and ',\n    'a two-digit month from 01 to 12.'\n)",
+									"type": "Expression"
+								},
+								"errorCode": "INVALID_PARAMETERS"
+							}
+						}
+					]
+				}
+			}
+		],
+		"concurrency": 1,
+		"parameters": {
+			"pp_year": {
+				"type": "string",
+				"defaultValue": "2026"
+			},
+			"pp_month": {
+				"type": "string",
+				"defaultValue": "01"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2026-11-22T01:32:18Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

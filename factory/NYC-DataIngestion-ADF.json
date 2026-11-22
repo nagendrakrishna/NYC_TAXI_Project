@@ -1,0 +1,16 @@
+{
+	"name": "NYC-DataIngestion-ADF",
+	"properties": {
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true,
+			"isExplicitlySet": false
+		}
+	},
+	"location": "uksouth",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "cd282879-f4d5-4ba8-8ea0-7ef8d00d7d8c",
+		"tenantId": "1faa39f9-00ef-4bab-8471-58cab497d42b"
+	}
+}

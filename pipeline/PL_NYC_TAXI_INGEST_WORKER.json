@@ -1,0 +1,549 @@
+{
+	"name": "PL_NYC_TAXI_INGEST_WORKER",
+	"properties": {
+		"activities": [
+			{
+				"name": "CP_HTTP_To_Staging",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.00:45:00",
+					"retry": 3,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "BinarySource",
+						"storeSettings": {
+							"type": "HttpReadSettings",
+							"requestMethod": "GET"
+						},
+						"formatSettings": {
+							"type": "BinaryReadSettings"
+						}
+					},
+					"sink": {
+						"type": "BinarySink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						}
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "DS_NYC_TAXI_HTTP_BINARY",
+						"type": "DatasetReference",
+						"parameters": {
+							"p_year": {
+								"value": "@pipeline().parameters.pp_year",
+								"type": "Expression"
+							},
+							"p_month": {
+								"value": "@pipeline().parameters.pp_month",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "DS_ADLS_BINARY",
+						"type": "DatasetReference",
+						"parameters": {
+							"p_file": {
+								"value": "@concat('yellow_tripdata_',pipeline().parameters.pp_year,'-',pipeline().parameters.pp_month,'.parquet')",
+								"type": "Expression"
+							},
+							"p_folder": {
+								"value": "@concat('_staging/nyc_taxi/',pipeline().RunId)",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			},
+			{
+				"name": "GM_Check_Staging_File",
+				"type": "GetMetadata",
+				"dependsOn": [
+					{
+						"activity": "CP_HTTP_To_Staging",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "DS_ADLS_BINARY",
+						"type": "DatasetReference",
+						"parameters": {
+							"p_file": {
+								"value": "@concat('yellow_tripdata_',pipeline().parameters.pp_year,'-',pipeline().parameters.pp_month,'.parquet')\n",
+								"type": "Expression"
+							},
+							"p_folder": {
+								"value": "@concat('_staging/nyc_taxi/',pipeline().RunId)",
+								"type": "Expression"
+							}
+						}
+					},
+					"fieldList": [
+						"size"
+					],
+					"storeSettings": {
+						"type": "AzureBlobFSReadSettings",
+						"recursive": true,
+						"enablePartitionDiscovery": false
+					},
+					"formatSettings": {
+						"type": "BinaryReadSettings"
+					}
+				}
+			},
+			{
+				"name": "IF_Staging_File_Valid",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "GM_Check_Staging_File",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@greater(activity('GM_Check_Staging_File').output.size, 0)\n",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "FAIL_Staging_File_Invalid",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": {
+									"value": "@concat('Staging file validation failed. File size: ',string(activity('GM_Check_Staging_File').output.size),' bytes. Run ID: ',pipeline().RunId)",
+									"type": "Expression"
+								},
+								"errorCode": "STAGING_FILE_EMPTY"
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "CP_Staging_To_Raw",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "IF_Staging_File_Valid",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.00:45:00",
+					"retry": 3,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "BinarySource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true
+						},
+						"formatSettings": {
+							"type": "BinaryReadSettings"
+						}
+					},
+					"sink": {
+						"type": "BinarySink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings",
+							"copyBehavior": "PreserveHierarchy"
+						}
+					},
+					"enableStaging": false,
+					"skipErrorFile": {
+						"dataInconsistency": false
+					},
+					"validateDataConsistency": true
+				},
+				"inputs": [
+					{
+						"referenceName": "DS_ADLS_BINARY",
+						"type": "DatasetReference",
+						"parameters": {
+							"p_file": {
+								"value": "@concat('yellow_tripdata_',pipeline().parameters.pp_year,'-',pipeline().parameters.pp_month,'.parquet')",
+								"type": "Expression"
+							},
+							"p_folder": {
+								"value": "@concat('_staging/nyc_taxi/',pipeline().RunId)",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "DS_ADLS_BINARY",
+						"type": "DatasetReference",
+						"parameters": {
+							"p_file": {
+								"value": "@concat('yellow_tripdata_',pipeline().parameters.pp_year,'-',pipeline().parameters.pp_month,'.parquet')",
+								"type": "Expression"
+							},
+							"p_folder": {
+								"value": "@concat('nyc_taxi/yellow/year=',pipeline().parameters.pp_year,'/month=',pipeline().parameters.pp_month)",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			},
+			{
+				"name": "GM_Check_Published_File",
+				"type": "GetMetadata",
+				"dependsOn": [
+					{
+						"activity": "CP_Staging_To_Raw",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "DS_ADLS_BINARY",
+						"type": "DatasetReference",
+						"parameters": {
+							"p_file": {
+								"value": "@concat('yellow_tripdata_',pipeline().parameters.pp_year,'-',pipeline().parameters.pp_month,'.parquet')\n",
+								"type": "Expression"
+							},
+							"p_folder": {
+								"value": "@concat('nyc_taxi/yellow/year=',pipeline().parameters.pp_year,'/month=',pipeline().parameters.pp_month)\n",
+								"type": "Expression"
+							}
+						}
+					},
+					"fieldList": [
+						"size"
+					],
+					"storeSettings": {
+						"type": "AzureBlobFSReadSettings",
+						"recursive": true,
+						"enablePartitionDiscovery": false
+					},
+					"formatSettings": {
+						"type": "BinaryReadSettings"
+					}
+				}
+			},
+			{
+				"name": "IF_Raw_Size_Matches",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "GM_Check_Published_File",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@and(greater(activity('GM_Check_Staging_File').output.size,0),equals(activity('GM_Check_Staging_File').output.size,activity('GM_Check_Published_File').output.size))",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "FAIL_Raw_Size_Mismatch",
+							"type": "Fail",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"message": {
+									"value": "@concat('Raw file size mismatch. Staging bytes: ',string(activity('GM_Check_Staging_File').output.size),', Raw bytes: ',string(activity('GM_Check_Published_File').output.size))",
+									"type": "Expression"
+								},
+								"errorCode": "RAW_SIZE_MISMATCH"
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "CP_Create_Success_Marker",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "BinarySource",
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": true
+									},
+									"formatSettings": {
+										"type": "BinaryReadSettings"
+									}
+								},
+								"sink": {
+									"type": "BinarySink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									}
+								},
+								"enableStaging": false
+							},
+							"inputs": [
+								{
+									"referenceName": "DS_ADLS_BINARY",
+									"type": "DatasetReference",
+									"parameters": {
+										"p_file": "success.txt",
+										"p_folder": "_control/templates"
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "DS_ADLS_BINARY",
+									"type": "DatasetReference",
+									"parameters": {
+										"p_file": "_SUCCESS",
+										"p_folder": {
+											"value": "@concat('nyc_taxi/yellow/year=',pipeline().parameters.pp_year,'/month=',pipeline().parameters.pp_month)",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"name": "FAIL_Success_Marker",
+							"type": "Fail",
+							"dependsOn": [
+								{
+									"activity": "CP_Create_Success_Marker",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"message": {
+									"value": "@concat(\n    'Ingestion failed for ',\n    pipeline().parameters.pp_year,\n    '-',\n    pipeline().parameters.pp_month,\n    '. Child Run ID: ',\n    pipeline().RunId,\n    '. Error: ',\n    activity('CP_Create_Success_Marker').error.message\n)",
+									"type": "Expression"
+								},
+								"errorCode": "STAGING_METADATA_FAILED"
+							}
+						},
+						{
+							"name": "DEL_Staging_File",
+							"type": "Delete",
+							"dependsOn": [
+								{
+									"activity": "CP_Create_Success_Marker",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataset": {
+									"referenceName": "DS_ADLS_BINARY",
+									"type": "DatasetReference",
+									"parameters": {
+										"p_file": {
+											"value": "@concat(\n    'yellow_tripdata_',\n    pipeline().parameters.pp_year,\n    '-',\n    pipeline().parameters.pp_month,\n    '.parquet'\n)",
+											"type": "Expression"
+										},
+										"p_folder": {
+											"value": "@concat('_staging/nyc_taxi/',pipeline().RunId)",
+											"type": "Expression"
+										}
+									}
+								},
+								"enableLogging": false,
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": false,
+									"enablePartitionDiscovery": false
+								}
+							}
+						},
+						{
+							"name": "SV_Record_Cleanup_Warning",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "DEL_Staging_File",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "v_cleanupWarning",
+								"value": {
+									"value": "@concat(\n    'Staging cleanup failed. Run ID: ',pipeline().RunId,\n    '. Error: ',activity('DEL_Staging_File').error.message\n)\n",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "FAIL_HTTP_Download",
+				"type": "Fail",
+				"dependsOn": [
+					{
+						"activity": "CP_HTTP_To_Staging",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"message": {
+						"value": "@concat(\n    'NYC Taxi HTTP download failed. Year: ',\n    pipeline().parameters.pp_year,\n    ', Month: ',\n    pipeline().parameters.pp_month,\n    ', Run ID: ',\n    pipeline().RunId,\n    ', Error: ',\n    activity('CP_HTTP_To_Staging').error.message\n)",
+						"type": "Expression"
+					},
+					"errorCode": "HTTP_DOWNLOAD_FAILED"
+				}
+			},
+			{
+				"name": "FAIL_Staging_Metadata",
+				"type": "Fail",
+				"dependsOn": [
+					{
+						"activity": "GM_Check_Staging_File",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"message": {
+						"value": "@concat(\n    'Ingestion failed for ',\n    pipeline().parameters.pp_year,\n    '-',\n    pipeline().parameters.pp_month,\n    '. Child Run ID: ',\n    pipeline().RunId,\n    '. Error: ',\n    activity('GM_Check_Staging_File').error.message\n)",
+						"type": "Expression"
+					},
+					"errorCode": "STAGING_METADATA_FAILED"
+				}
+			},
+			{
+				"name": "FAIL_Raw_Copy",
+				"type": "Fail",
+				"dependsOn": [
+					{
+						"activity": "CP_Staging_To_Raw",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"message": {
+						"value": "@concat(\n    'Ingestion failed for ',\n    pipeline().parameters.pp_year,\n    '-',\n    pipeline().parameters.pp_month,\n    '. Child Run ID: ',\n    pipeline().RunId,\n    '. Error: ',\n    activity('CP_Staging_To_Raw').error.message\n)",
+						"type": "Expression"
+					},
+					"errorCode": "STAGING_METADATA_FAILED"
+				}
+			},
+			{
+				"name": "FAIL_Raw_Metadata",
+				"type": "Fail",
+				"dependsOn": [
+					{
+						"activity": "GM_Check_Published_File",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"message": {
+						"value": "@concat(\n    'Ingestion failed for ',\n    pipeline().parameters.pp_year,\n    '-',\n    pipeline().parameters.pp_month,\n    '. Child Run ID: ',\n    pipeline().RunId,\n    '. Error: ',\n    activity('GM_Check_Published_File').error.message\n)",
+						"type": "Expression"
+					},
+					"errorCode": "STAGING_METADATA_FAILED"
+				}
+			}
+		],
+		"concurrency": 1,
+		"parameters": {
+			"pp_year": {
+				"type": "string"
+			},
+			"pp_month": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"v_cleanupWarning": {
+				"type": "String"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2026-11-21T21:54:46Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

@@ -1,0 +1,33 @@
+{
+	"name": "TRG_NYC_TAXI_MONTHLY",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Stopped",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "PL_NYC_TAXI_MONTHLY_INGESTION",
+					"type": "PipelineReference"
+				},
+				"parameters": {
+					"pp_year": "@formatDateTime(subtractFromTime(trigger().scheduledTime, 1, 'Month'),'yyyy')",
+					"pp_month": "@formatDateTime(subtractFromTime(trigger().scheduledTime, 1, 'Month'),'MM')"
+				}
+			}
+		],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Month",
+				"interval": 15,
+				"startTime": "2026-11-23T01:00:00Z",
+				"timeZone": "UTC",
+				"schedule": {
+					"monthDays": [
+						15
+					]
+				}
+			}
+		}
+	}
+}
