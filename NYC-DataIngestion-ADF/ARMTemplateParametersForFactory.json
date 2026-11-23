@@ -1,0 +1,24 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "NYC-DataIngestion-ADF"
+		},
+		"LS_AzureDatabricks_accessToken": {
+			"value": ""
+		},
+		"LS_ADLS_GEN2_properties_typeProperties_url": {
+			"value": "https://adeadlsgen2.dfs.core.windows.net/"
+		},
+		"LS_NYC_TLC_HTTP_properties_typeProperties_url": {
+			"value": "https://d37ci6vzurychx.cloudfront.net/"
+		},
+		"TRG_NYC_TAXI_MONTHLY_properties_PL_NYC_TAXI_MONTHLY_INGESTION_parameters_pp_year": {
+			"value": "@formatDateTime(subtractFromTime(trigger().scheduledTime, 1, 'Month'),'yyyy')"
+		},
+		"TRG_NYC_TAXI_MONTHLY_properties_PL_NYC_TAXI_MONTHLY_INGESTION_parameters_pp_month": {
+			"value": "@formatDateTime(subtractFromTime(trigger().scheduledTime, 1, 'Month'),'MM')"
+		}
+	}
+}

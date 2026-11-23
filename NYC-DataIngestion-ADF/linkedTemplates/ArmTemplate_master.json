@@ -1,0 +1,77 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "NYC-DataIngestion-ADF"
+		},
+		"LS_AzureDatabricks_accessToken": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accessToken' of 'LS_AzureDatabricks'"
+		},
+		"LS_ADLS_GEN2_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://adeadlsgen2.dfs.core.windows.net/"
+		},
+		"LS_NYC_TLC_HTTP_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://d37ci6vzurychx.cloudfront.net/"
+		},
+		"TRG_NYC_TAXI_MONTHLY_properties_PL_NYC_TAXI_MONTHLY_INGESTION_parameters_pp_year": {
+			"type": "string",
+			"defaultValue": "@formatDateTime(subtractFromTime(trigger().scheduledTime, 1, 'Month'),'yyyy')"
+		},
+		"TRG_NYC_TAXI_MONTHLY_properties_PL_NYC_TAXI_MONTHLY_INGESTION_parameters_pp_month": {
+			"type": "string",
+			"defaultValue": "@formatDateTime(subtractFromTime(trigger().scheduledTime, 1, 'Month'),'MM')"
+		},
+		"containerUri": {
+			"type": "string",
+			"metadata": "URI to storage account containing linked ARM templates"
+		},
+		"containerSasToken": {
+			"type": "string",
+			"metadata": "Sas token to storage account containing linked ARM templates"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "NYC-DataIngestion-ADF_ArmTemplate_0",
+			"type": "Microsoft.Resources/deployments",
+			"apiVersion": "2024-03-01",
+			"properties": {
+				"mode": "incremental",
+				"templateLink": {
+					"uri": "[concat(parameters('containerUri'), '/ArmTemplate_0.json', parameters('containerSasToken'))]",
+					"contentVersion": "1.0.0.0"
+				},
+				"parameters": {
+					"factoryName": {
+						"value": "[parameters('factoryName')]"
+					},
+					"LS_AzureDatabricks_accessToken": {
+						"value": "[parameters('LS_AzureDatabricks_accessToken')]"
+					},
+					"LS_ADLS_GEN2_properties_typeProperties_url": {
+						"value": "[parameters('LS_ADLS_GEN2_properties_typeProperties_url')]"
+					},
+					"LS_NYC_TLC_HTTP_properties_typeProperties_url": {
+						"value": "[parameters('LS_NYC_TLC_HTTP_properties_typeProperties_url')]"
+					},
+					"TRG_NYC_TAXI_MONTHLY_properties_PL_NYC_TAXI_MONTHLY_INGESTION_parameters_pp_year": {
+						"value": "[parameters('TRG_NYC_TAXI_MONTHLY_properties_PL_NYC_TAXI_MONTHLY_INGESTION_parameters_pp_year')]"
+					},
+					"TRG_NYC_TAXI_MONTHLY_properties_PL_NYC_TAXI_MONTHLY_INGESTION_parameters_pp_month": {
+						"value": "[parameters('TRG_NYC_TAXI_MONTHLY_properties_PL_NYC_TAXI_MONTHLY_INGESTION_parameters_pp_month')]"
+					}
+				}
+			},
+			"dependsOn": []
+		}
+	]
+}
