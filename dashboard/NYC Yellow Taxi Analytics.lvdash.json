@@ -1,0 +1,817 @@
+{
+  "datasets": [
+    {
+      "name": "20d6d0eb",
+      "displayName": "Taxi_Analytics",
+      "queryLines": [
+        "SELECT\r\n",
+        "    pickup_date,\r\n",
+        "    pickup_hour,\r\n",
+        "    pickup_location_id,\r\n",
+        "    payment_type,\r\n",
+        "    trip_count,\r\n",
+        "    total_amount_usd,\r\n",
+        "    fare_amount_usd,\r\n",
+        "    tip_amount_usd,\r\n",
+        "    total_distance_miles,\r\n",
+        "    total_duration_seconds\r\n",
+        "FROM nyc_taxi.gold.trip_activity_summary"
+      ],
+      "columns": [
+        {
+          "displayName": "Payment Type Label",
+          "description": "Readable payment labels for taxi payment codes.",
+          "expression": "CASE WHEN `payment_type` = 0 THEN 'Flex Fare' WHEN `payment_type` = 1 THEN 'Credit Card' WHEN `payment_type` = 2 THEN 'Cash' WHEN `payment_type` = 3 THEN 'No Charge' WHEN `payment_type` = 4 THEN 'Dispute' WHEN `payment_type` = 5 THEN 'Unknown' WHEN `payment_type` = 6 THEN 'Voided Trip' WHEN `payment_type` = -1 THEN 'Missing' ELSE 'Other' END"
+        },
+        {
+          "displayName": "Average Trip Charge USD",
+          "description": "Weighted average charge per trip using pre-aggregated trip counts.",
+          "expression": "TRY_DIVIDE(SUM(`total_amount_usd`), SUM(`trip_count`))"
+        },
+        {
+          "displayName": "Average Trip Distance Miles",
+          "description": "Weighted average trip distance using pre-aggregated trip counts.",
+          "expression": "TRY_DIVIDE(SUM(`total_distance_miles`), SUM(`trip_count`))"
+        },
+        {
+          "displayName": "Average Trip Duration Minutes",
+          "description": "Weighted average trip duration in minutes using pre-aggregated trip counts.",
+          "expression": "TRY_DIVIDE(SUM(`total_duration_seconds`), SUM(`trip_count`)) / 60"
+        }
+      ],
+      "catalog": "nyc_taxi",
+      "schema": "gold"
+    }
+  ],
+  "pages": [
+    {
+      "name": "32178032",
+      "displayName": "Taxi Analytics Overview",
+      "layout": [
+        {
+          "widget": {
+            "name": "total-trips",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "20d6d0eb",
+                  "fields": [
+                    {
+                      "name": "sum(trip_count)",
+                      "expression": "SUM(`trip_count`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": "Total Trips"
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(trip_count)"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            },
+            "specExtensions": {
+              "widgetBackgroundColor": {
+                "light": "#FFFFFF"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "total-amount-1",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "20d6d0eb",
+                  "fields": [
+                    {
+                      "name": "sum(total_amount_usd)",
+                      "expression": "SUM(`total_amount_usd`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": "Total Charges (USD)"
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(total_amount_usd)"
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 3,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "dashboard_title",
+            "spec": {
+              "widgetType": "text",
+              "version": 1,
+              "encodings": {
+                "text": {
+                  "lines": [
+                    "# NYC Yellow Taxi Analytics"
+                  ],
+                  "fields": []
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_pickup_date",
+            "queries": [
+              {
+                "name": "dashboards/01f1e78c2256158086cb5c505a625c3b/datasets/01f1e78c30e810c49a4460d0c6b57eae_pickup_date",
+                "query": {
+                  "datasetName": "20d6d0eb",
+                  "fields": [
+                    {
+                      "name": "pickup_date",
+                      "expression": "`pickup_date`"
+                    },
+                    {
+                      "name": "pickup_date_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Pickup Date Range"
+              },
+              "widgetType": "filter-date-range-picker",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "pickup_date",
+                    "queryName": "dashboards/01f1e78c2256158086cb5c505a625c3b/datasets/01f1e78c30e810c49a4460d0c6b57eae_pickup_date"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 4,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_pickup_location",
+            "queries": [
+              {
+                "name": "dashboards/01f1e78c2256158086cb5c505a625c3b/datasets/01f1e78c30e810c49a4460d0c6b57eae_pickup_location_id",
+                "query": {
+                  "datasetName": "20d6d0eb",
+                  "fields": [
+                    {
+                      "name": "pickup_location_id",
+                      "expression": "`pickup_location_id`"
+                    },
+                    {
+                      "name": "pickup_location_id_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Pickup Location"
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "pickup_location_id",
+                    "queryName": "dashboards/01f1e78c2256158086cb5c505a625c3b/datasets/01f1e78c30e810c49a4460d0c6b57eae_pickup_location_id"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 1,
+            "width": 4,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "filter_payment_type",
+            "queries": [
+              {
+                "name": "dashboards/01f1e78c2256158086cb5c505a625c3b/datasets/01f1e78c30e810c49a4460d0c6b57eae_Payment Type Label",
+                "query": {
+                  "datasetName": "20d6d0eb",
+                  "fields": [
+                    {
+                      "name": "Payment Type Label",
+                      "expression": "`Payment Type Label`"
+                    },
+                    {
+                      "name": "Payment Type Label_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "Payment Type",
+                  "fields": []
+                }
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "Payment Type Label",
+                    "queryName": "dashboards/01f1e78c2256158086cb5c505a625c3b/datasets/01f1e78c30e810c49a4460d0c6b57eae_Payment Type Label"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 1,
+            "width": 4,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "avg_trip_charge",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "20d6d0eb",
+                  "fields": [
+                    {
+                      "name": "measure(Average Trip Charge USD)",
+                      "expression": "MEASURE(`Average Trip Charge USD`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": "Average Trip Charge (USD)"
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "measure(Average Trip Charge USD)",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 5,
+            "y": 3,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "avg_trip_distance",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "20d6d0eb",
+                  "fields": [
+                    {
+                      "name": "measure(Average Trip Distance Miles)",
+                      "expression": "MEASURE(`Average Trip Distance Miles`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": "Average Trip Distance (Miles)"
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "measure(Average Trip Distance Miles)",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 7,
+            "y": 3,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "avg_trip_duration",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "20d6d0eb",
+                  "fields": [
+                    {
+                      "name": "measure(Average Trip Duration Minutes)",
+                      "expression": "MEASURE(`Average Trip Duration Minutes`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": "Average Trip Duration (Minutes)"
+              },
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "measure(Average Trip Duration Minutes)",
+                  "rowNumber": 0
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 9,
+            "y": 3,
+            "width": 3,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "daily_trip_volume",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "20d6d0eb",
+                  "fields": [
+                    {
+                      "name": "daily(pickup_date)",
+                      "expression": "DATE_TRUNC(\"DAY\", `pickup_date`)"
+                    },
+                    {
+                      "name": "sum(trip_count)",
+                      "expression": "SUM(`trip_count`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": "Daily Trip Volume"
+              },
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "daily(pickup_date)",
+                  "displayName": "Day",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(trip_count)",
+                  "displayName": "trip_count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "daily_total_charges",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "20d6d0eb",
+                  "fields": [
+                    {
+                      "name": "daily(pickup_date)",
+                      "expression": "DATE_TRUNC(\"DAY\", `pickup_date`)"
+                    },
+                    {
+                      "name": "sum(total_amount_usd)",
+                      "expression": "SUM(`total_amount_usd`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": "Daily Total Charges"
+              },
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "daily(pickup_date)",
+                  "displayName": "Day",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(total_amount_usd)",
+                  "displayName": "total_amount_usd",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 6,
+            "y": 6,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "trips_by_pickup_hour",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "20d6d0eb",
+                  "fields": [
+                    {
+                      "name": "pickup_hour",
+                      "expression": "`pickup_hour`"
+                    },
+                    {
+                      "name": "sum(trip_count)",
+                      "expression": "SUM(`trip_count`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": "Trips by Pickup Hour"
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "pickup_hour",
+                  "displayName": "pickup_hour",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(trip_count)",
+                  "displayName": "trip_count",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "pickup_hour",
+                  "displayName": "pickup_hour",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 12,
+            "width": 4,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "pickup_locations_trip_count",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "20d6d0eb",
+                  "fields": [
+                    {
+                      "name": "sum(trip_count)",
+                      "expression": "SUM(`trip_count`)"
+                    },
+                    {
+                      "name": "pickup_location_id",
+                      "expression": "`pickup_location_id`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": "Top 10 Pickup Locations by Trip Count"
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "sum(trip_count)",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "pickup_location_id",
+                  "scale": {
+                    "type": "categorical",
+                    "categorySize": {
+                      "type": "number-of-categories",
+                      "number": 10
+                    },
+                    "sort": {
+                      "by": "x-reversed"
+                    }
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 12,
+            "width": 4,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "payment_distribution",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "20d6d0eb",
+                  "fields": [
+                    {
+                      "name": "sum(trip_count)",
+                      "expression": "SUM(`trip_count`)"
+                    },
+                    {
+                      "name": "Payment Type Label",
+                      "expression": "`Payment Type Label`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": "Payment Method Distribution"
+              },
+              "version": 3,
+              "widgetType": "pie",
+              "encodings": {
+                "angle": {
+                  "fieldName": "sum(trip_count)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "trip_count"
+                },
+                "color": {
+                  "fieldName": "Payment Type Label",
+                  "displayName": "Payment Type Label",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 12,
+            "width": 4,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "monthly_trip_volume_charges",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "20d6d0eb",
+                  "fields": [
+                    {
+                      "name": "monthly(pickup_date)",
+                      "expression": "DATE_TRUNC(\"MONTH\", `pickup_date`)"
+                    },
+                    {
+                      "name": "sum(trip_count)",
+                      "expression": "SUM(`trip_count`)"
+                    },
+                    {
+                      "name": "sum(total_amount_usd)",
+                      "expression": "SUM(`total_amount_usd`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": "Monthly Trip Volume and Charges"
+              },
+              "version": 3,
+              "mark": {
+                "layout": "group"
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "monthly(pickup_date)",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fields": [
+                    {
+                      "fieldName": "sum(trip_count)",
+                      "displayName": "Trips"
+                    },
+                    {
+                      "fieldName": "sum(total_amount_usd)",
+                      "displayName": "Charges (USD)"
+                    }
+                  ],
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 18,
+            "width": 12,
+            "height": 6
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "bdbb554c",
+      "displayName": "Untitled page",
+      "pageType": "PAGE_TYPE_CANVAS"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    },
+    "applyModeEnabled": false
+  }
+}
