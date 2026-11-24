@@ -136,3 +136,32 @@ FROM nyc_taxi.gold.trip_activity_summary;
 The monthly trigger is kept inactive when the learning environment is paused. Compute and SQL warehouses can be stopped between runs to control cloud costs. Re-running a failed or historical month uses the same year/month parameters. Silver and Gold are processed sequentially after Bronze, and the audit table preserves execution history across reruns.
 
 This is an independently developed portfolio project using public taxi data.
+
+
+
+## Project Results
+
+| Metric | Result |
+|---|---:|
+| Records processed | 3,724,889 |
+| Accepted records | 3,679,812 |
+| Rejected records | 45,077 |
+| Data acceptance rate | 98.79% |
+
+## Analytics Dashboard
+
+![NYC Taxi Analytics](docs/screenshots/Dashboard.png)
+
+## Pipeline Orchestration
+
+![ADF Pipeline](docs/screenshots/parent_pipeline.png)
+
+![Databricks Workflow](docs/screenshots/DataBricksJob.png)
+
+## Execution and Data Quality
+
+![Execution Status](docs/screenshots/DataBricksJob_executionStaus.png)
+
+![Data Quality](docs/screenshots/DataQualityCheck.png)
+
+![Audit Logging](docs/screenshots/AuditTable.png)
